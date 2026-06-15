@@ -1409,20 +1409,23 @@ struct mnl_nlmsg_batch *
 start_batch(char *buf, size_t buf_size)
 {
 	struct mnl_nlmsg_batch *result;
-	mnl_seq = time(NULL);
 
 	if (mnl_sock == NULL) {
 		log_error("netlink not connected");
-		result = NULL;
-	} else {
-		result = mnl_nlmsg_batch_start(buf, buf_size);
-		if (result != NULL) {
-			nft_mnl_batch_put(mnl_nlmsg_batch_current(result),
-							  NFNL_MSG_BATCH_BEGIN, mnl_seq++);
-			mnl_nlmsg_batch_next(result);
-		}
+		return NULL;
 	}
-
+	mnl_seq = time(NULL);
+	result = mnl_nlmsg_batch_start(buf, buf_size);
+	if (result == NULL) {
+		syslog(LOG_ERR, "%s: mnl_nlmsg_batch_start(%p, %lu) returned NULL",
+		       "start_batch", buf, (unsigned long)buf_size);
+		return NULL;
+	}
+	nft_mnl_batch_put(mnl_nlmsg_batch_current(result),
+					  NFNL_MSG_BATCH_BEGIN, mnl_seq++);
+	if (!mnl_nlmsg_batch_next(result)) {
+		syslog(LOG_ERR, "%s: mnl_nlmsg_batch_next returned false", "start_batch");
+	}
 	return result;
 }
 
